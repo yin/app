@@ -37,7 +37,7 @@ func TestMain(m *testing.M) {
 	if dockerCli == "" {
 		dockerCli = "docker"
 	}
-	cmd := exec.Command(dockerApp, "version")
+	cmd := exec.Command(dockerApp, "app", "version")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		panic(err)

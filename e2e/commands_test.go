@@ -50,7 +50,7 @@ func testRenderApp(appPath string, env ...string) func(*testing.T) {
 		data, err := ioutil.ReadFile(filepath.Join(appPath, "env.yml"))
 		assert.NilError(t, err)
 		assert.NilError(t, yaml.Unmarshal(data, &envParameters))
-		args := []string{dockerApp, "render", filepath.Join(appPath, "my.dockerapp"),
+		args := []string{dockerApp, "app", "render", filepath.Join(appPath, "my.dockerapp"),
 			"-f", filepath.Join(appPath, "parameters-0.yml"),
 		}
 		for k, v := range envParameters {
@@ -66,10 +66,10 @@ func testRenderApp(appPath string, env ...string) func(*testing.T) {
 
 func TestRenderFormatters(t *testing.T) {
 	appPath := filepath.Join("testdata", "simple", "simple.dockerapp")
-	result := icmd.RunCommand(dockerApp, "render", "--formatter", "json", appPath).Assert(t, icmd.Success)
+	result := icmd.RunCommand(dockerApp, "app", "render", "--formatter", "json", appPath).Assert(t, icmd.Success)
 	golden.Assert(t, result.Stdout(), "expected-json-render.golden")
 
-	result = icmd.RunCommand(dockerApp, "render", "--formatter", "yaml", appPath).Assert(t, icmd.Success)
+	result = icmd.RunCommand(dockerApp, "app", "render", "--formatter", "yaml", appPath).Assert(t, icmd.Success)
 	golden.Assert(t, result.Stdout(), "expected-yaml-render.golden")
 }
 
@@ -105,7 +105,7 @@ maintainers:
 
 	cmd := icmd.Cmd{Dir: tmpDir.Path()}
 
-	cmd.Command = []string{dockerApp,
+	cmd.Command = []string{dockerApp, "app",
 		"init", testAppName,
 		"-c", tmpDir.Join(internal.ComposeFileName),
 		"-d", "my cool app",
@@ -123,11 +123,11 @@ maintainers:
 	assert.Assert(t, fs.Equal(tmpDir.Join(dirName), manifest))
 
 	// validate metadata with JSON Schema
-	cmd.Command = []string{dockerApp, "validate", testAppName}
+	cmd.Command = []string{dockerApp, "app", "validate", testAppName}
 	icmd.RunCmd(cmd).Assert(t, icmd.Success)
 
 	// test single-file init
-	cmd.Command = []string{dockerApp,
+	cmd.Command = []string{dockerApp, "app",
 		"init", "tac",
 		"-c", tmpDir.Join(internal.ComposeFileName),
 		"-d", "my cool app",
@@ -141,10 +141,10 @@ maintainers:
 	assert.NilError(t, err)
 	golden.Assert(t, string(appData), "init-singlefile.dockerapp")
 	// Check various commands work on single-file app package
-	cmd.Command = []string{dockerApp, "inspect", "tac"}
+	cmd.Command = []string{dockerApp, "app", "inspect", "tac"}
 	icmd.RunCmd(cmd).Assert(t, icmd.Success)
 
-	cmd.Command = []string{dockerApp, "render", "tac"}
+	cmd.Command = []string{dockerApp, "app", "render", "tac"}
 	icmd.RunCmd(cmd).Assert(t, icmd.Success)
 }
 
@@ -159,19 +159,19 @@ func TestDetectApp(t *testing.T) {
 	)
 	defer dir.Remove()
 	icmd.RunCmd(icmd.Cmd{
-		Command: []string{dockerApp, "inspect"},
+		Command: []string{dockerApp, "app", "inspect"},
 		Dir:     dir.Path(),
 	}).Assert(t, icmd.Success)
 	icmd.RunCmd(icmd.Cmd{
-		Command: []string{dockerApp, "inspect"},
+		Command: []string{dockerApp, "app", "inspect"},
 		Dir:     dir.Join("attachments.dockerapp"),
 	}).Assert(t, icmd.Success)
 	icmd.RunCmd(icmd.Cmd{
-		Command: []string{dockerApp, "inspect", "."},
+		Command: []string{dockerApp, "app", "inspect", "."},
 		Dir:     dir.Join("attachments.dockerapp"),
 	}).Assert(t, icmd.Success)
 	result := icmd.RunCmd(icmd.Cmd{
-		Command: []string{dockerApp, "inspect"},
+		Command: []string{dockerApp, "app", "inspect"},
 		Dir:     dir.Join("render"),
 	})
 	result.Assert(t, icmd.Expected{
@@ -184,28 +184,28 @@ func TestSplitMerge(t *testing.T) {
 	tmpDir := fs.NewDir(t, "split_merge")
 	defer tmpDir.Remove()
 
-	icmd.RunCommand(dockerApp, "merge", "testdata/render/envvariables/my.dockerapp", "-o", tmpDir.Join("remerged.dockerapp")).Assert(t, icmd.Success)
+	icmd.RunCommand(dockerApp, "app", "merge", "testdata/render/envvariables/my.dockerapp", "-o", tmpDir.Join("remerged.dockerapp")).Assert(t, icmd.Success)
 
 	cmd := icmd.Cmd{Dir: tmpDir.Path()}
 
 	// test that inspect works on single-file
-	cmd.Command = []string{dockerApp, "inspect", "remerged"}
+	cmd.Command = []string{dockerApp, "app", "inspect", "remerged"}
 	result := icmd.RunCmd(cmd).Assert(t, icmd.Success)
 	golden.Assert(t, result.Combined(), "envvariables-inspect.golden")
 
 	// split it
-	cmd.Command = []string{dockerApp, "split", "remerged", "-o", "split.dockerapp"}
+	cmd.Command = []string{dockerApp, "app", "split", "remerged", "-o", "split.dockerapp"}
 	icmd.RunCmd(cmd).Assert(t, icmd.Success)
 
-	cmd.Command = []string{dockerApp, "inspect", "remerged"}
+	cmd.Command = []string{dockerApp, "app", "inspect", "remerged"}
 	result = icmd.RunCmd(cmd).Assert(t, icmd.Success)
 	golden.Assert(t, result.Combined(), "envvariables-inspect.golden")
 
 	// test inplace
-	cmd.Command = []string{dockerApp, "merge", "split"}
+	cmd.Command = []string{dockerApp, "app", "merge", "split"}
 	icmd.RunCmd(cmd).Assert(t, icmd.Success)
 
-	cmd.Command = []string{dockerApp, "split", "split"}
+	cmd.Command = []string{dockerApp, "app", "split", "split"}
 	icmd.RunCmd(cmd).Assert(t, icmd.Success)
 }
 
@@ -233,7 +233,7 @@ func TestBundle(t *testing.T) {
 	icmd.RunCmd(cmd).Assert(t, icmd.Success)
 
 	// Bundle the docker application package to a CNAB bundle, using the build-context.
-	cmd.Command = []string{dockerApp, "bundle", filepath.Join("testdata", "simple", "simple.dockerapp"), "--out", tmpDir.Join("bundle.json")}
+	cmd.Command = []string{dockerApp, "app", "bundle", filepath.Join("testdata", "simple", "simple.dockerapp"), "--out", tmpDir.Join("bundle.json")}
 	icmd.RunCmd(cmd).Assert(t, icmd.Success)
 
 	// Check the resulting CNAB bundle.json
@@ -308,7 +308,7 @@ func TestDockerAppLifecycle(t *testing.T) {
 	icmd.RunCmd(cmd).Assert(t, icmd.Success)
 
 	// Install a Docker Application Package
-	cmd.Command = []string{dockerApp, "install", "testdata/simple/simple.dockerapp", "--name", t.Name()}
+	cmd.Command = []string{dockerApp, "app", "install", "testdata/simple/simple.dockerapp", "--name", t.Name()}
 	checkContains(t, icmd.RunCmd(cmd).Assert(t, icmd.Success).Combined(),
 		[]string{
 			fmt.Sprintf("Creating network %s_back", t.Name()),
@@ -319,7 +319,7 @@ func TestDockerAppLifecycle(t *testing.T) {
 		})
 
 	// Query the application status
-	cmd.Command = []string{dockerApp, "status", t.Name()}
+	cmd.Command = []string{dockerApp, "app", "status", t.Name()}
 	checkContains(t, icmd.RunCmd(cmd).Assert(t, icmd.Success).Combined(),
 		[]string{
 			fmt.Sprintf("[[:alnum:]]+        %s_db    replicated          [0-1]/1                 postgres:9.3", t.Name()),
@@ -328,7 +328,7 @@ func TestDockerAppLifecycle(t *testing.T) {
 		})
 
 	// Upgrade the application, changing the port
-	cmd.Command = []string{dockerApp, "upgrade", t.Name(), "--set", "web_port=8081"}
+	cmd.Command = []string{dockerApp, "app", "upgrade", t.Name(), "--set", "web_port=8081"}
 	checkContains(t, icmd.RunCmd(cmd).Assert(t, icmd.Success).Combined(),
 		[]string{
 			fmt.Sprintf("Updating service %s_db", t.Name()),
@@ -337,11 +337,11 @@ func TestDockerAppLifecycle(t *testing.T) {
 		})
 
 	// Query the application status again, the port should have change
-	cmd.Command = []string{dockerApp, "status", t.Name()}
+	cmd.Command = []string{dockerApp, "app", "status", t.Name()}
 	icmd.RunCmd(cmd).Assert(t, icmd.Expected{ExitCode: 0, Out: "8081"})
 
 	// Uninstall the application
-	cmd.Command = []string{dockerApp, "uninstall", t.Name()}
+	cmd.Command = []string{dockerApp, "app", "uninstall", t.Name()}
 	checkContains(t, icmd.RunCmd(cmd).Assert(t, icmd.Success).Combined(),
 		[]string{
 			fmt.Sprintf("Removing service %s_api", t.Name()),

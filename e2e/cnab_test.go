@@ -2,10 +2,12 @@ package e2e
 
 import (
 	"fmt"
+	"os"
 	"path"
 	"runtime"
 	"testing"
 
+	"github.com/docker/cli/cli-plugins/manager"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"
 	"gotest.tools/fs"
@@ -28,7 +30,7 @@ func TestCallCustomStatusAction(t *testing.T) {
 		{
 			name:           "missingCustomStatusAction",
 			exitCode:       1,
-			expectedOutput: "Error: Status failed: action not defined for bundle",
+			expectedOutput: "Status failed: action not defined for bundle",
 			cnab:           "cnab-without-status",
 		},
 	}
@@ -39,7 +41,9 @@ func TestCallCustomStatusAction(t *testing.T) {
 			defer tmpDir.Remove()
 			testDir := path.Join("testdata", testCase.cnab)
 			cmd := icmd.Cmd{
-				Env: []string{fmt.Sprintf("DUFFLE_HOME=%s", tmpDir.Path())},
+				Env: append(os.Environ(),
+					fmt.Sprintf("DUFFLE_HOME=%s", tmpDir.Path()),
+					fmt.Sprintf(manager.ReexecEnvvar+"="+dockerCli)),
 			}
 
 			// We need to explicitly set the SYSTEMROOT on windows
@@ -54,17 +58,17 @@ func TestCallCustomStatusAction(t *testing.T) {
 			icmd.RunCmd(cmd).Assert(t, icmd.Success)
 
 			// docker-app install
-			cmd.Command = []string{dockerApp, "install", path.Join(testDir, "bundle.json"), "--name", testCase.name}
+			cmd.Command = []string{dockerApp, "app", "install", path.Join(testDir, "bundle.json"), "--name", testCase.name}
 			icmd.RunCmd(cmd).Assert(t, icmd.Success)
 
 			// docker-app uninstall
 			defer func() {
-				cmd.Command = []string{dockerApp, "uninstall", testCase.name}
+				cmd.Command = []string{dockerApp, "app", "uninstall", testCase.name}
 				icmd.RunCmd(cmd).Assert(t, icmd.Success)
 			}()
 
 			// docker-app status
-			cmd.Command = []string{dockerApp, "status", testCase.name}
+			cmd.Command = []string{dockerApp, "app", "status", testCase.name}
 			result := icmd.RunCmd(cmd)
 			result.Assert(t, icmd.Expected{ExitCode: testCase.exitCode})
 			assert.Assert(t, is.Contains(result.Combined(), testCase.expectedOutput))
