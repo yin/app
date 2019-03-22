@@ -222,7 +222,7 @@ tar xf "/tmp/docker-app-${OSTYPE}.tar.gz" -C /tmp/
 
 To install `docker-app` as a standalone:
 ```bash
-install -b "/tmp/docker-app-standalone-${OSTYPE}" /usr/local/bin/docker-app
+install -b "/tmp/docker-app-${OSTYPE}" /usr/local/bin/docker-app
 ```
 
 To install `docker-app` as a docker cli plugin:
